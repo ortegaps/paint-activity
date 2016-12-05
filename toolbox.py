@@ -61,12 +61,14 @@ Walter Bender                       (walter@laptop.org)
 
 """
 
+import os
 from gettext import gettext as _
 
 from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GObject
 from gi.repository import Pango
+from gi.repository import GdkPixbuf
 import logging
 
 from sugar3.activity.widgets import EditToolbar
@@ -104,6 +106,31 @@ def add_menu(icon_name, tooltip, tool_name, button, activate_cb):
     button.menu_box.append_item(menu_item)
     menu_item.show()
     return menu_item
+
+
+def get_hex_from_gdk_color(color):
+    red = int(color.red / 65535.0 * 255)
+    green = int(color.green / 65535.0 * 255)
+    blue = int(color.blue / 65535.0 * 255)
+    return '#%02x%02x%02x' % (red, green, blue)
+
+
+def get_icon_with_color(icon_name, color='#FFFFFF'):
+    img_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+        "icons/", icon_name + ".svg")
+
+    with open(img_path, "r") as img_file:
+        svg = img_file.read()
+        svg = svg.replace('#FFFFFF', color)
+
+    pl = GdkPixbuf.PixbufLoader.new_with_type('svg')
+    pl.write(svg)
+    pl.close()
+
+    pixbuf = pl.get_pixbuf()
+    pixbuf = pixbuf.scale_simple(38, 38, GdkPixbuf.InterpType.BILINEAR);
+
+    return Gtk.Image.new_from_pixbuf(pixbuf)
 
 
 class DrawToolbarBox(ToolbarBox):
@@ -209,6 +236,7 @@ class DrawToolbarBox(ToolbarBox):
 
         stroke_color = Gdk.Color(red, green, blue)
         self.brush_button.set_color(stroke_color)
+        self.tools_builder._update_tool_brush_color(stroke_color)
 
     def initialize_brush_shape_tools(self):
         tool_name = self._activity.area.tool['name']
@@ -430,7 +458,12 @@ class ToolsToolbarBuilder():
         """
 
         if widget != self._tool_brush:
-            self._tool_brush.set_icon_name(widget.icon_name)
+            if tool_name == self._TOOL_BRUSH_NAME:
+                self._update_tool_brush_color(
+                    self._activity.area.get_stroke_color())
+            else:
+                self._tool_brush.set_icon_name(widget.icon_name)
+
             self._stroke_color.set_selected_tool(tool_name)
 
         if tool_name == self._TOOL_STAMP_NAME:
@@ -465,6 +498,15 @@ class ToolsToolbarBuilder():
     def _color_button_cb(self, widget, pspec):
         new_color = widget.get_color()
         self._activity.area.set_stroke_color(new_color)
+
+        if self.properties['name'] == self._TOOL_BRUSH_NAME:
+            self._update_tool_brush_color(new_color)
+
+    def _update_tool_brush_color(self, gdk_color):
+        hex_color = get_hex_from_gdk_color(gdk_color)
+        self._tool_brush.set_icon_widget(
+            get_icon_with_color('tool-brush', hex_color))
+        self._tool_brush.show_all()
 
     def _on_signal_undo_cb(self, widget, data=None):
         self._verify_sensitive_buttons()

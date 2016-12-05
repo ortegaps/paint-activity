@@ -1254,6 +1254,11 @@ class Area(Gtk.DrawingArea):
         rgba.red, rgba.green, rgba.blue, rgba.alpha = red, green, blue, alpha
         self.activity.textview.override_color(Gtk.StateFlags.NORMAL, rgba)
 
+    def get_stroke_color(self):
+        color = self.tool['cairo_stroke_color']
+        return Gdk.RGBA(color[0] * 65535, color[1] * 65535,
+                        color[2] * 65535, color[3] * 65535)
+
     def set_alpha(self, alpha):
         """
         Set the alpha value used to draw
