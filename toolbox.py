@@ -60,17 +60,13 @@ Project Advisor (OLPC):
 Walter Bender                       (walter@laptop.org)
 
 """
-
-import os
 from gettext import gettext as _
-
 from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GObject
 from gi.repository import Pango
-from gi.repository import GdkPixbuf
+import os
 import logging
-
 from sugar3.activity.widgets import EditToolbar
 from sugar3.graphics.toolcombobox import ToolComboBox
 from sugar3.graphics.toolbutton import ToolButton
@@ -86,18 +82,14 @@ from sugar3.graphics.colorbutton import ColorToolButton
 from sugar3.graphics.radiopalette import RadioPalette
 from sugar3.graphics.palettemenu import PaletteMenuBox
 from sugar3.graphics.palettemenu import PaletteMenuItem
-
 from sugar3.graphics import style
-
 from sugar3.activity.widgets import ActivityToolbarButton
 from sugar3.graphics.toolbarbox import ToolbarButton, ToolbarBox
 from sugar3.activity.widgets import StopButton
-
 from fontcombobox import FontComboBox
 from fontcombobox import FontSize
-
 from dialogs import TuxStampDialog
-
+from gi.repository import GdkPixbuf
 
 def add_menu(icon_name, tooltip, tool_name, button, activate_cb):
     menu_item = PaletteMenuItem(icon_name=icon_name, text_label=tooltip)
@@ -106,33 +98,22 @@ def add_menu(icon_name, tooltip, tool_name, button, activate_cb):
     button.menu_box.append_item(menu_item)
     menu_item.show()
     return menu_item
-
-
-def get_hex_from_gdk_color(color):
+def have_color(color):
     red = int(color.red / 65535.0 * 255)
     green = int(color.green / 65535.0 * 255)
     blue = int(color.blue / 65535.0 * 255)
     return '#%02x%02x%02x' % (red, green, blue)
-
-
-def get_icon_with_color(icon_name, color='#FFFFFF'):
-    img_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-        "icons/", icon_name + ".svg")
-
+def color_icon(icon_name, color='#FFFFFF'):
+    img_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),"icons/", icon_name + ".svg")
     with open(img_path, "r") as img_file:
-        svg = img_file.read()
-        svg = svg.replace('#FFFFFF', color)
-
-    pl = GdkPixbuf.PixbufLoader.new_with_type('svg')
-    pl.write(svg)
-    pl.close()
-
-    pixbuf = pl.get_pixbuf()
-    pixbuf = pixbuf.scale_simple(38, 38, GdkPixbuf.InterpType.BILINEAR);
-
-    return Gtk.Image.new_from_pixbuf(pixbuf)
-
-
+        icon = img_file.read()
+        icon = icon.replace('#FFFFFF', color)
+    nicon = GdkPixbuf.PixbufLoader.new_with_type('svg')
+    nicon.write(icon)
+    nicon.close()
+    pf = nicon.get_pixbuf()
+    pf = pf.scale_simple(38, 38, GdkPixbuf.InterpType.BILINEAR);
+    return Gtk.Image.new_from_pixbuf(pf)
 class DrawToolbarBox(ToolbarBox):
     """Create toolbars for the activity"""
 
@@ -236,7 +217,7 @@ class DrawToolbarBox(ToolbarBox):
 
         stroke_color = Gdk.Color(red, green, blue)
         self.brush_button.set_color(stroke_color)
-        self.tools_builder._update_tool_brush_color(stroke_color)
+        self.tools_builder.color_brush(stroke_color)
 
     def initialize_brush_shape_tools(self):
         tool_name = self._activity.area.tool['name']
@@ -500,13 +481,7 @@ class ToolsToolbarBuilder():
         self._activity.area.set_stroke_color(new_color)
 
         if self.properties['name'] == self._TOOL_BRUSH_NAME:
-            self._update_tool_brush_color(new_color)
-
-    def _update_tool_brush_color(self, gdk_color):
-        hex_color = get_hex_from_gdk_color(gdk_color)
-        self._tool_brush.set_icon_widget(
-            get_icon_with_color('tool-brush', hex_color))
-        self._tool_brush.show_all()
+            self.color_brush(new_color)
 
     def _on_signal_undo_cb(self, widget, data=None):
         self._verify_sensitive_buttons()
@@ -531,6 +506,12 @@ class ToolsToolbarBuilder():
         resized_stamp = self._activity.area.setup_stamp(stamp=filepath)
         self._stroke_color.color_button.set_resized_stamp(resized_stamp)
         self._do_setup_tool('load-stamp')
+
+    def color_brush(self, gdk_color):
+        hexadecimal_color = have_color(gdk_color)
+        self._tool_brush.set_icon_widget(
+            color_icon('tool-brush', hexadecimal_color))
+        self._tool_brush.show_all()
 
 
 class ButtonFillColor(ColorToolButton):
